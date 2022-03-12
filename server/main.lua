@@ -1,5 +1,4 @@
 ESX = nil
-local PlayersVente = {}
 
 TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
@@ -8,69 +7,58 @@ AddEventHandler('esx_oceansalvage:GiveItem', function()
 	local _source = source
 	local xPlayer = ESX.GetPlayerFromId(_source)
 
-	local Quantity = xPlayer.getInventoryItem(Config.Zones.Vente.ItemRequires).count
-
-	if Quantity >= 15 then
-		TriggerClientEvent('esx:showNotification', _source, _U('stop_npc'))
-	else
-		local amount = Config.Zones.Vente.ItemAdd
-		local item = Config.Zones.Vente.ItemDb_name
-		xPlayer.addInventoryItem(item, amount)
-		TriggerClientEvent('esx:showNotification', _source, _U('salvage_collected'))
-	end
-
-end)
-
-local function Vente(source)
-
-	SetTimeout(Config.Zones.Vente.ItemTime, function()
-
-		if PlayersVente[source] == true then
-
-			local _source = source
-			local xPlayer = ESX.GetPlayerFromId(_source)
-
-			local Quantity = xPlayer.getInventoryItem(Config.Zones.Vente.ItemRequires).count
-
-			if Quantity < Config.Zones.Vente.ItemRemove then
-				TriggerClientEvent('esx:showNotification', _source, _U('sell_nomorebills'))
-				PlayersVente[_source] = false
-			else
-				local amount = Config.Zones.Vente.ItemRemove
-				local item = Config.Zones.Vente.ItemRequires
-
-				Citizen.Wait(1500)
-				xPlayer.removeInventoryItem(item, amount)
-				xPlayer.addMoney(Config.Zones.Vente.ItemPrice)
-				TriggerClientEvent('esx:showNotification', _source, _U('sell_earned', ESX.Math.GroupDigits(Config.Zones.Vente.ItemPrice)))
-				Vente(_source)
-			end
-
+	local randomChance = math.random(0, 100)
+	if randomChance == 1 then
+		local xItem = xPlayer.getInventoryItem('spanish_gold')
+		if xItem.limit ~= -1 and (xItem.count + 1) > xItem.limit then
+			TriggerClientEvent('esx:showNotification', source, "Inventory is Full")
+		else
+			xPlayer.addInventoryItem('spanish_gold', 1)
+			TriggerClientEvent('esx:showNotification', _source, _U('salvage_collected'))
 		end
-	end)
-end
-
-RegisterServerEvent('esx_oceansalvage:startVente')
-AddEventHandler('esx_oceansalvage:startVente', function()
-	local _source = source
-
-	if PlayersVente[_source] == false then
-		TriggerClientEvent('esx:showNotification', _source, _U('sell_nobills'))
-		PlayersVente[_source] = false
 	else
-		PlayersVente[_source] = true
-		TriggerClientEvent('esx:showNotification', _source, _U('sell_cashing'))
-		Vente(_source)
+		local xItem = xPlayer.getInventoryItem('contrat')
+		if xItem.limit ~= -1 and (xItem.count + 1) > xItem.limit then
+			TriggerClientEvent('esx:showNotification', source, "Inventory is Full")
+		else
+			xPlayer.addInventoryItem('contrat', 1)
+			TriggerClientEvent('esx:showNotification', _source, _U('salvage_collected'))
+		end
 	end
 end)
 
-RegisterServerEvent('esx_oceansalvage:stopVente')
-AddEventHandler('esx_oceansalvage:stopVente', function()
-	local _source = source
-
-	if PlayersVente[_source] == true then
-		PlayersVente[_source] = false
+RegisterServerEvent('esx_oceansalvage:GiveOxygenMask')
+AddEventHandler('esx_oceansalvage:GiveOxygenMask', function()
+	local xPlayer = ESX.GetPlayerFromId(source)
+	local xItem = xPlayer.getInventoryItem('oxygen_mask')
+	if xItem.limit ~= -1 and (xItem.count + 1) > xItem.limit then
+		TriggerClientEvent('esx:showNotification', source, "Inventory is Full")
 	else
-		PlayersVente[_source] = true
+		xPlayer.addInventoryItem('oxygen_mask', 1)
 	end
+end)
+
+RegisterServerEvent('esx_oceansalvage:sellSalvage')
+AddEventHandler('esx_oceansalvage:sellSalvage', function(itemName, amount)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    local price = Config.Itemsprice[itemName]
+    local xItem = xPlayer.getInventoryItem(itemName)
+
+
+    if xItem.count < amount then
+        TriggerClientEvent('esx:showNotification', source, _U('not_enough'))
+        return
+    end
+
+    price = ESX.Math.Round(price * amount)
+
+    if Config.GiveBlack then
+        xPlayer.addAccountMoney('black_money', price)
+    else
+        xPlayer.addMoney(price)
+    end
+
+    xPlayer.removeInventoryItem(xItem.name, amount)
+
+    TriggerClientEvent('esx:showNotification', source, _U('sold', amount, xItem.label, ESX.Math.GroupDigits(price)))
 end)

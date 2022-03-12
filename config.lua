@@ -6,6 +6,32 @@ Config.PlatePrefix  = "OCEANMAN"
 
 Config.Locale       = 'en'
 
+Config.GiveBlack = false
+
+Config.MarkerSize             = {x = 1.5, y = 1.5, z = 1.0}
+Config.MarkerColor            = {r = 0, g = 0, b = 255}
+Config.MarkerType             = 1
+
+Config.EnableBlips 				= true
+Config.NPCEnable          = true -- Set to false to disable NPC Ped at shop location.
+Config.NPCHash			      = 797459875 --Hash of the npc ped. Change only if you know what you are doing.
+Config.NPCShop	          = { x = -1592.81, y = 5203.04, z = 3.31, h = 285.41 } -- Location of the shop For the npc.
+
+Config.Blips = {
+	Shop = {coords = vector3(-1592.81, 5203.04, 3.31), name = _U('map_blip_shop'), color = 0, sprite = 605}
+}
+
+Config.Items = {
+  "contrat",
+  "spanish_gold"
+}
+
+Config.Itemsprice = {
+  contrat = 1000,
+  spanish_gold = 100000
+}
+
+
 Config.Vehicles = {
 	Truck = {
 		Spawner = 1,
@@ -17,13 +43,12 @@ Config.Vehicles = {
 }
 
 Config.Zones = {
-
 	Cloakroom = {
 		Pos     = {x = -1613.32, y = 5257.62, z = 2.97},
 		Size    = {x = 1.5, y = 1.5, z = 0.3},
 		Color   = {r = 11, g = 203, b = 159},
 		Type    = 1,
-		BlipSprite = 308,
+		BlipSprite = 356,
 		BlipColor = 5,
 		BlipName = _U('blip_locker'),
 		hint = _U('prompt_locker')
@@ -39,42 +64,20 @@ Config.Zones = {
 	},
 
 	VehicleSpawnPoint = {
-		Pos   = {x = -1616.62, y = 5256.92, z = -0.47},
+		Pos   = {x = -1602.43, y = 5259.09, z = -0.12},
 		Size  = {x = 3.0, y = 3.0, z = 1.0},
 		Type  = -1,
 		Heading = 25.48
 	},
 
 	VehicleDeleter = {
-		Pos   = {x = -1617.24, y = 5244.99, z = -0.1},
+		Pos   = {x = -1602.43, y = 5259.09, z = -0.12},
 		Size  = {x = 3.0, y = 3.0, z = 1.3},
 		Color = {r = 255, g = 0, b = 0},
 		Type  = 1,
 		BlipName = _U('blip_vehicledeleter'),
 		hint = _U('prompt_vehicledeleter')
-	},
-
-	Vente = {
-		Pos   = {x = -1597.54, y = 5205.98, z = 3.31},
-		Size  = {x = 5.0, y = 5.0, z = 0.3},
-		Color = {r = 11, g = 203, b = 159},
-		Type  = 1,
-
-		BlipName = _U('blip_cashout'),
-		hint = _U('prompt_cashout'),
-
-		ItemTime = 500,
-		ItemDb_name = "contrat",
-		ItemName = "Facture",
-		ItemMax = 25,
-		ItemAdd = 5,
-		ItemRemove = 1,
-		ItemRequires = "contrat",
-		ItemRequires_name = "Facture",
-		ItemDrop = 100,
-		ItemPrice  = 800
 	}
-
 }
 
 Config.Pool = {
@@ -158,4 +161,3 @@ Config.Uniforms = {
 	}
 
 }
-

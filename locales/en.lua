@@ -6,7 +6,7 @@ Locales['en'] = {
   ['take_service'] = 'enter Service',
   ['end_service_notif'] = 'service has been ~r~ended~s~',
   ['take_service_notif'] = 'service has been ~s~started~s~',
-  ['start_job'] = 'press ~b~F10~s~ to start the job',
+  ['start_job'] = 'press ~b~F6~s~ to start the job',
   ['Vehicle_Menu_Title'] = 'service Vehicle',
   ['in_vehicle'] = '~r~You can\'t be in an vehicle!',
   ['vehicle_broken'] = '~r~You need to repair the vehicle before continuing!~s~',
@@ -17,18 +17,19 @@ Locales['en'] = {
   ['locker_title'] = 'job locker',
   ['locker_nooutfit'] = 'your outfit is missing!',
 
-  ['sell_cashing'] = '~g~Cashing~s~ bills...',
-  ['sell_nobills'] = '~r~You don\'t have any bills to cash',
-  ['sell_nomorebills'] = '~r~You don\'t have any more bills to cash',
-  ['sell_earned'] = 'you have earned ~g~$%s~s~',
-
   ['blip_locker'] = 'diver: Ocean Salvage Job',
   ['blip_vehicle'] = 'diver: Vehicle',
   ['blip_vehicledeleter'] = 'diver: Return Vehicle',
-  ['blip_cashout'] = 'diver: Job Cash Out',
 
   ['prompt_locker'] = 'press ~INPUT_CONTEXT~ to access the ~y~Job Locker~s~.',
   ['prompt_vehicle'] = 'press ~INPUT_CONTEXT~ to ~y~Select Job Vehicle~s~.',
   ['prompt_vehicledeleter'] = 'press ~INPUT_CONTEXT~ to ~y~Return Job Vehicle~s~.',
   ['prompt_cashout'] = 'press ~INPUT_CONTEXT~ to turn in ~y~Collected Salvage~s~.',
+  
+	['map_blip_shop'] = "Sell Ocean Salvage",
+	['shop_prompt'] = 'press ~INPUT_CONTEXT~ to sell your ~r~Salvage~s~.',
+	['shop_title'] = 'Paleto Cove Salvage',
+	['item'] = '$%s',
+	['sold'] = "you\'ve sold ~b~%sx~s~ ~y~%s~s~ for ~g~$%s~s~",
+	['not_enough'] = 'you don\'t have enough of that to sell!',
 }

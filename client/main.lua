@@ -11,7 +11,7 @@ local Keys = {
 }
 
 ESX = nil
-
+PlayerData                    = {}
 local HasAlreadyEnteredMarker = false
 local LastZone = nil
 local CurrentAction = nil
@@ -22,34 +22,34 @@ local BlipCloakRoom = nil
 local BlipVehicle = nil
 local BlipVehicleDeleter = nil
 local Blips = {}
+local salvageBlips = {}
 local OnJob = false
 local Done = false
 
 Citizen.CreateThread(function()
-	while ESX == nil do
-		TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-		Citizen.Wait(10)
-	end
+  while ESX == nil do
+    TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+    Citizen.Wait(0)
+  end
 
-	while ESX.GetPlayerData().job == nil do
-		Citizen.Wait(100)
-	end
-
-	ESX.PlayerData = ESX.GetPlayerData()
-	CreateBlip()
+  while ESX.GetPlayerData() == nil do
+    Citizen.Wait(10)
+  end
+  PlayerData = ESX.GetPlayerData()
 end)
 
 RegisterNetEvent('esx:playerLoaded')
 AddEventHandler('esx:playerLoaded', function(xPlayer)
-	ESX.PlayerData = xPlayer
-	CreateBlip()
+  PlayerData = xPlayer
+	refreshBlips()
 end)
 
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
-	ESX.PlayerData.job = job
+  PlayerData.job = job
 	onDuty = false
-	CreateBlip()
+	--CreateBlip()
+  refreshBlips()
 end)
 
 function SelectPool()
@@ -70,6 +70,7 @@ function StartNPCJob()
 	SetBlipRoute(Blips['NPCTargetPool'], true)
 	ESX.ShowNotification(_U('GPS_info'))
 	Done = true
+	TriggerServerEvent('esx_oceansalvage:GiveOxygenMask')
 end
 
 function StopNPCJob(cancel)
@@ -94,24 +95,26 @@ Citizen.CreateThread(function()
 		Citizen.Wait(10)
 
 		if NPCTargetPool ~= nil then
-
 			local playerPed = PlayerPedId()
 			local coords = GetEntityCoords(playerPed)
 			local zone = Config.Zones[NPCTargetPool]
 
-			if GetDistanceBetweenCoords(coords, zone.Pos.x, zone.Pos.y, zone.Pos.z, true) < 3 then
+      if GetDistanceBetweenCoords(coords, zone.Pos.x, zone.Pos.y, zone.Pos.z, true) < 200 then
+        DrawMarker(Config.MarkerType, zone.Pos.x, zone.Pos.y, zone.Pos.z, 0.0, 0.0, 0.0, 0, 0.0, 0.0, Config.MarkerSize.x, Config.MarkerSize.y, Config.MarkerSize.z, 255, 255, 0, 100, false, true, 2, false, false, false, false)
 
-				ESX.ShowHelpNotification(_U('pickup'))
+        if GetDistanceBetweenCoords(coords, zone.Pos.x, zone.Pos.y, zone.Pos.z, true) < 3 then
+  				ESX.ShowHelpNotification(_U('pickup'))
 
-				if IsControlJustReleased(1, Keys["E"]) and ESX.PlayerData.job ~= nil then
-					TaskStartScenarioInPlace(playerPed, 'WORLD_HUMAN_WELDING', 0, true)
-					Citizen.Wait(17000)
-					StopNPCJob()
-					Citizen.Wait(3000)
-					ClearPedTasksImmediately(playerPed)
-					Done = false
-				end
-			end
+  				if IsControlJustReleased(1, Keys["E"]) and PlayerData.job ~= nil then
+  					TaskStartScenarioInPlace(playerPed, 'WORLD_HUMAN_WELDING', 0, true)
+  					Citizen.Wait(17000)
+  					StopNPCJob()
+  					Citizen.Wait(3000)
+  					ClearPedTasksImmediately(playerPed)
+  					Done = false
+  				end
+  			end
+      end
 		end
 	end
 end)
@@ -130,14 +133,15 @@ function CloakRoomMenu()
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'cloakroom', {
 		title    = _U('locker_title'),
-		align    = 'top-left',
+		align    = 'bottom-right',
 		elements = elements
 	}, function(data, menu)
 
 		if data.current.value == 'citizen_wear' then
 
 			onDuty = false
-			CreateBlip()
+      refreshBlips()
+			--CreateBlip()
 			menu.close()
 			ESX.ShowNotification(_U('end_service_notif'))
 
@@ -148,7 +152,8 @@ function CloakRoomMenu()
 		elseif data.current.value == 'job_wear' then
 
 			onDuty = true
-			CreateBlip()
+      refreshBlips()
+			--CreateBlip()
 			menu.close()
 			ESX.ShowNotification(_U('take_service_notif'))
 			ESX.ShowNotification(_U('start_job'))
@@ -179,7 +184,7 @@ function VehicleMenu()
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'spawn_vehicle', {
 		title    = _U('Vehicle_Menu_Title'),
-		align    = 'top-left',
+		align    = 'bottom-right',
 		elements = elements
 	}, function(data, menu)
 
@@ -190,12 +195,8 @@ function VehicleMenu()
 
 		ESX.Game.SpawnVehicle(data.current.value.Hash, Config.Zones.VehicleSpawnPoint.Pos, Config.Zones.VehicleSpawnPoint.Heading, function(vehicle)
 			TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
-			SetVehicleNumberPlateText(vehicle, platePrefix .. plateNum)
-
-			local plate = ESX.Math.Trim(GetVehicleNumberPlateText(vehicle))
-
-			name = 'Véhicule de '..platePrefix
-			TriggerServerEvent('esx_vehiclelock:registerkeyjob', name, plate, 'no')
+			exports["LegacyFuel"]:SetFuel(vehicle, 100)
+			TriggerServerEvent('esx_vehiclelock:registerVehicleOwner', vehicle)
 		end)
 
 	end, function(data, menu)
@@ -209,7 +210,6 @@ function VehicleMenu()
 end
 
 AddEventHandler('esx_oceansalvage:hasEnteredMarker', function(zone)
-
 	if zone == 'Cloakroom' then
 		CurrentAction     = 'cloakroom_menu'
 		CurrentActionMsg  = Config.Zones.Cloakroom.hint
@@ -218,8 +218,7 @@ AddEventHandler('esx_oceansalvage:hasEnteredMarker', function(zone)
 		CurrentAction     = 'vehiclespawn_menu'
 		CurrentActionMsg  = Config.Zones.VehicleSpawner.hint
 		CurrentActionData = {}
-	elseif zone == 'VehicleDeleter' then
-
+	elseif zone == 'VehicleDeleter' then -- broken
 		local playerPed = PlayerPedId()
 		if IsPedInAnyVehicle(playerPed, false) then
 			local vehicle = GetVehiclePedIsIn(playerPed, false)
@@ -230,25 +229,16 @@ AddEventHandler('esx_oceansalvage:hasEnteredMarker', function(zone)
 				CurrentActionData = {}
 			end
 		end
-
-	elseif zone == 'Vente' then
-		CurrentAction     = 'vente'
-		CurrentActionMsg  = Config.Zones.Vente.hint
-		CurrentActionData = {}
 	end
 end)
 
 AddEventHandler('esx_oceansalvage:hasExitedMarker', function(zone)
-	if zone == 'Vente' then
-		TriggerServerEvent('esx_oceansalvage:stopVente')
-	end
-
 	CurrentAction = nil
 	ESX.UI.Menu.CloseAll()
 end)
 
-function CreateBlip()
-	if ESX.PlayerData.job ~= nil and ESX.PlayerData.job.name == Config.JobName then
+--[[function CreateBlip()
+	if PlayerData.job ~= nil and PlayerData.job.name == Config.JobName then
 
 		if BlipCloakRoom == nil then
 
@@ -270,7 +260,7 @@ function CreateBlip()
 
 	end
 
-	if ESX.PlayerData.job ~= nil and ESX.PlayerData.job.name == Config.JobName and onDuty then
+	if PlayerData.job ~= nil and PlayerData.job.name == Config.JobName and onDuty then
 
 		BlipVehicle = AddBlipForCoord(Config.Zones.VehicleSpawner.Pos.x, Config.Zones.VehicleSpawner.Pos.y, Config.Zones.VehicleSpawner.Pos.z)
 		SetBlipSprite(BlipVehicle, Config.Zones.VehicleSpawner.BlipSprite)
@@ -280,15 +270,6 @@ function CreateBlip()
 		BeginTextCommandSetBlipName("STRING")
 		AddTextComponentString(Config.Zones.VehicleSpawner.BlipName)
 		EndTextCommandSetBlipName(BlipVehicle)
-
-		BlipVente = AddBlipForCoord(Config.Zones.Vente.Pos.x, Config.Zones.Vente.Pos.y, Config.Zones.Vente.Pos.z)
-		SetBlipSprite(BlipVente, Config.Zones.Vente.BlipSprite)
-		SetBlipColour(BlipVente, Config.Zones.Vente.BlipColor)
-		SetBlipAsShortRange(BlipVente, true)
-
-		BeginTextCommandSetBlipName("STRING")
-		AddTextComponentString(Config.Zones.Vente.BlipName)
-		EndTextCommandSetBlipName(BlipVente)
 
 		BlipVehicleDeleter = AddBlipForCoord(Config.Zones.VehicleDeleter.Pos.x, Config.Zones.VehicleDeleter.Pos.y, Config.Zones.VehicleDeleter.Pos.z)
 		SetBlipSprite(BlipVehicleDeleter, Config.Zones.VehicleDeleter.BlipSprite)
@@ -305,26 +286,70 @@ function CreateBlip()
 			BlipVehicle = nil
 		end
 
-		if BlipVente ~= nil then
-			RemoveBlip(BlipVente)
-			BlipVente = nil
-		end
-
 		if BlipVehicleDeleter ~= nil then
 			RemoveBlip(BlipVehicleDeleter)
 			BlipVehicleDeleter = nil
 		end
 	end
+end]]
+
+-- CREATE BLIPS
+Citizen.CreateThread(function()
+  local BlipCloakRoom = AddBlipForCoord(Config.Zones.Cloakroom.Pos.x, Config.Zones.Cloakroom.Pos.y, Config.Zones.Cloakroom.Pos.z)
+  SetBlipSprite(BlipCloakRoom, Config.Zones.Cloakroom.BlipSprite)
+  SetBlipColour(BlipCloakRoom, Config.Zones.Cloakroom.BlipColor)
+  SetBlipAsShortRange(BlipCloakRoom, true)
+  BeginTextCommandSetBlipName("STRING")
+  AddTextComponentString(Config.Zones.Cloakroom.BlipName)
+  EndTextCommandSetBlipName(BlipCloakRoom)
+end)
+
+function drawBlip(coords, icon, text, shortRange)
+
+  local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
+
+  SetBlipSprite (blip, icon)
+  SetBlipDisplay(blip, 4)
+  SetBlipScale  (blip, 0.9)
+  SetBlipColour (blip, 5)
+  SetBlipAsShortRange(blip, shortRange)
+
+  BeginTextCommandSetBlipName("STRING")
+  AddTextComponentString(text)
+  EndTextCommandSetBlipName(blip)
+  table.insert(salvageBlips, blip)
+
 end
+
+function refreshBlips()
+	deleteBlips()
+
+	if PlayerData.job.name ~= nil and PlayerData.job.name == Config.JobName then
+		drawBlip(Config.Zones.Cloakroom.Pos, 366, "Locker Room", false)
+		if onDuty then
+			drawBlip(Config.Zones.VehicleSpawner.Pos, 315, "Vehicle Spawner", true)
+		end
+	end
+end
+
+function deleteBlips()
+  if salvageBlips[1] ~= nil then
+    for i = 1, #salvageBlips, 1 do
+      RemoveBlip(salvageBlips[i])
+      salvageBlips[i] = nil
+    end
+  end
+end
+
 
 Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(0)
 
-		if ESX.PlayerData.job ~= nil then
+		if PlayerData.job ~= nil then
 			local coords = GetEntityCoords(PlayerPedId())
 
-			if ESX.PlayerData.job.name == Config.JobName then
+			if PlayerData.job.name == Config.JobName then
 				if onDuty then
 
 					for k,v in pairs(Config.Zones) do
@@ -352,13 +377,19 @@ Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(1)
 
-		if ESX.PlayerData.job ~= nil then
+		if PlayerData.job ~= nil then
 			local coords      = GetEntityCoords(PlayerPedId())
 			local isInMarker  = false
 			local currentZone = nil
 
-			if ESX.PlayerData.job.name == Config.JobName then
-				if onDuty then
+			if PlayerData.job.name == Config.JobName then
+        local Cloakroom = Config.Zones.Cloakroom
+        if(GetDistanceBetweenCoords(coords, Cloakroom.Pos.x, Cloakroom.Pos.y, Cloakroom.Pos.z, true) <= Cloakroom.Size.x) then
+          isInMarker  = true
+          currentZone = "Cloakroom"
+        end
+
+        if onDuty then
 					for k,v in pairs(Config.Zones) do
 						if v ~= Config.Zones.Cloakroom then
 							if(GetDistanceBetweenCoords(coords, v.Pos.x, v.Pos.y, v.Pos.z, true) <= v.Size.x) then
@@ -367,13 +398,13 @@ Citizen.CreateThread(function()
 							end
 						end
 					end
-				end
 
-				local Cloakroom = Config.Zones.Cloakroom
-				if(GetDistanceBetweenCoords(coords, Cloakroom.Pos.x, Cloakroom.Pos.y, Cloakroom.Pos.z, true) <= Cloakroom.Size.x) then
-					isInMarker  = true
-					currentZone = "Cloakroom"
-				end
+          local VehicleDeleter = Config.Zones.VehicleDeleter
+  				if(GetDistanceBetweenCoords(coords, VehicleDeleter.Pos.x, VehicleDeleter.Pos.y, VehicleDeleter.Pos.z, true) <= VehicleDeleter.Size.x) then
+  					isInMarker  = true
+  					currentZone = "VehicleDeleter"
+  				end
+        end
 			end
 
 			if (isInMarker and not HasAlreadyEnteredMarker) or (isInMarker and LastZone ~= currentZone) then
@@ -396,10 +427,10 @@ Citizen.CreateThread(function()
 		if CurrentAction ~= nil then
 			ESX.ShowHelpNotification(CurrentActionMsg)
 
-			if (IsControlJustReleased(1, Keys["E"]) or IsControlJustReleased(2, Keys["RIGHT"])) and ESX.PlayerData.job ~= nil then
+			if (IsControlJustReleased(1, Keys["E"]) or IsControlJustReleased(2, Keys["RIGHT"])) and PlayerData.job ~= nil then
 				local playerPed = PlayerPedId()
 
-				if ESX.PlayerData.job.name == Config.JobName then
+				if PlayerData.job.name == Config.JobName then
 					if CurrentAction == 'cloakroom_menu' then
 
 						if IsPedInAnyVehicle(playerPed, false) then
@@ -416,33 +447,12 @@ Citizen.CreateThread(function()
 							VehicleMenu()
 						end
 
-					elseif CurrentAction == 'vente' then
-
-						TriggerServerEvent('esx_oceansalvage:startVente')
-						TaskStartScenarioInPlace(playerPed, "WORLD_HUMAN_CLIPBOARD", 0, 1)
-
 					elseif CurrentAction == 'delete_vehicle' then
 
 						local playerPed = PlayerPedId()
 						local vehicle = GetVehiclePedIsIn(playerPed, false)
-						local hash = GetEntityModel(vehicle)
-						local plate = ESX.Math.Trim(GetVehicleNumberPlateText(vehicle))
-
-						local platePrefix = Config.PlatePrefix
-
-						if string.find(plate, platePrefix) then
-							local truck = Config.Vehicles.Truck
-
-							if hash == GetHashKey(truck.Hash) then
-								if GetVehicleEngineHealth(vehicle) <= 500 or GetVehicleBodyHealth(vehicle) <= 500 then
-									ESX.ShowNotification(_U('vehicle_broken'))
-								else
-									TriggerServerEvent('esx_vehiclelock:vehjobSup', plate, 'no')
-									DeleteVehicle(vehicle)
-								end
-							end
-						else
-							ESX.ShowNotification(_U('bad_vehicle'))
+						if IsPedInAnyVehicle(playerPed, false) and IsVehicleModel(GetVehiclePedIsIn(playerPed, false), GetHashKey("dinghy")) then
+							DeleteVehicle(vehicle)
 						end
 
 					end
@@ -458,7 +468,7 @@ Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(10)
 
-		if IsControlJustReleased(1, Keys["F10"]) and ESX.PlayerData.job ~= nil and ESX.PlayerData.job.name == Config.JobName then
+		if IsControlJustReleased(1, Keys["F6"]) and PlayerData.job ~= nil and PlayerData.job.name == Config.JobName then
 
 			if Onjob then
 				StopNPCJob(true)
@@ -497,3 +507,106 @@ function setUniform(job)
 
 	end)
 end
+
+function OpenShop()
+	ESX.UI.Menu.CloseAll()
+	local elements = {}
+
+	for k, v in pairs(ESX.GetPlayerData().inventory) do
+		local price = Config.Itemsprice[v.name]
+
+		if price and v.count > 0 then
+			table.insert(elements, {
+				label = ('%s - <span style="color:green;">%s</span>'):format(v.label, _U('item', ESX.Math.GroupDigits(price))),
+				name = v.name,
+				price = price,
+
+				-- menu properties
+				type = 'slider',
+				value = 1,
+				min = 1,
+				max = v.count
+			})
+		end
+	end
+
+	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'sell_salvage', {
+		title    = _U('shop_title'),
+		align    = 'right',
+		elements = elements
+	}, function(data, menu)
+		TriggerServerEvent('esx_oceansalvage:sellSalvage', data.current.name, data.current.value)
+    menu.close()
+	end, function(data, menu)
+		menu.close()
+	end)
+end
+
+
+AddEventHandler('onResourceStop', function(resource)
+  local menuOpen = ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'jewel_trader')
+  if menuOpen then
+    ESX.UI.Menu.CloseAll()
+  end
+end)
+
+
+-- Create Blips
+Citizen.CreateThread(function()
+	local SellSalvage = AddBlipForCoord(Config.Blips.Shop.coords.x, Config.Blips.Shop.coords.y, Config.Blips.Shop.coords.z)
+	SetBlipSprite(SellSalvage, Config.Blips.Shop.sprite)
+	SetBlipScale(SellSalvage, 0.8)
+	SetBlipAsShortRange(SellSalvage, true)
+	BeginTextCommandSetBlipName("STRING")
+	AddTextComponentString(Config.Blips.Shop.name)
+	EndTextCommandSetBlipName(SellSalvage)
+end)
+
+-- Create NPC
+Citizen.CreateThread(function()
+  if Config.NPCEnable == true then
+		RequestModel(Config.NPCHash)
+		while not HasModelLoaded(Config.NPCHash) do
+			Wait(1)
+		end
+
+	--PROVIDER
+		jewel_buyer = CreatePed(1, Config.NPCHash, Config.NPCShop.x, Config.NPCShop.y, Config.NPCShop.z, Config.NPCShop.h, false, true)
+		SetBlockingOfNonTemporaryEvents(jewel_buyer, true)
+		SetPedDiesWhenInjured(jewel_buyer, false)
+		SetPedCanPlayAmbientAnims(jewel_buyer, true)
+		SetPedCanRagdollFromPlayerImpact(jewel_buyer, false)
+		SetEntityInvincible(jewel_buyer, true)
+		FreezeEntityPosition(jewel_buyer, true)
+		TaskStartScenarioInPlace(jewel_buyer, "WORLD_HUMAN_SMOKING", 0, true);
+	end
+end)
+
+Citizen.CreateThread(function()
+	while true do
+		Citizen.Wait(0)
+		local playerPed = PlayerPedId()
+		local coords = GetEntityCoords(playerPed)
+
+		if GetDistanceBetweenCoords(coords, Config.Blips.Shop.coords, true) < 3.0 then
+			local menuOpen = ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'jewel_trader')
+      if not menuOpen then
+				ESX.ShowHelpNotification(_U('shop_prompt'))
+
+				if IsControlJustReleased(0, 38) then
+					wasOpen = true
+					OpenShop()
+				end
+			else
+				Citizen.Wait(500)
+			end
+		else
+			if wasOpen then
+				wasOpen = false
+				ESX.UI.Menu.CloseAll()
+			end
+
+			Citizen.Wait(500)
+		end
+	end
+end)
